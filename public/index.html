@@ -5,78 +5,101 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Market Terminal</title>
     <link rel="stylesheet" href="/styles.css">
+    <meta name="color-scheme" content="dark light">
+    <meta name="theme-color" content="#0b1220">
 </head>
 <body>
-    <div class="top-bar">
-        <div class="logo">MARKET TERMINAL</div>
-        <div class="stats">
-            <span class="stat-item">ITEMS: <span id="item-count">0</span></span>
-            <span class="stat-item">TOTAL QTY: <span id="total-qty">0</span></span>
+    <div class="market-top">
+        <div class="market-brand">MARKET TERMINAL</div>
+        <div class="market-controls">
+            <select id="region" class="select-input small">
+                <option>Jita</option>
+                <option>Amarr</option>
+                <option>Dodixie</option>
+            </select>
+            <input id="search" class="search-input small" placeholder="Search items or notes...">
+            <button id="refresh-btn" class="icon-btn">⟳</button>
+            <button id="add-btn" class="primary-btn small">+ NEW</button>
         </div>
     </div>
 
-    <div class="container">
-        <div class="sidebar">
-            <div class="panel">
-                <div class="panel-header">ACTIONS</div>
-                <div class="panel-content">
-                    <button id="add-btn" class="action-btn">+ NEW ENTRY</button>
-                    <button id="refresh-btn" class="action-btn secondary">REFRESH</button>
+    <div class="market-wrap">
+        <aside class="market-sidebar">
+            <div class="sidebar-section">
+                <div class="section-title">CATEGORIES</div>
+                <div class="category-add">
+                    <input id="new-category" placeholder="Add category..." class="cat-input">
+                    <button id="add-category-btn" class="icon-btn">＋</button>
                 </div>
+                <ul id="category-list" class="category-list">
+                    <!-- rendered by JS -->
+                </ul>
             </div>
-            
-            <div class="panel">
-                <div class="panel-header">FILTERS</div>
-                <div class="panel-content">
-                    <input type="text" id="search" placeholder="Search items..." class="search-input">
-                    <select id="sort" class="select-input">
-                        <option value="newest">Newest First</option>
-                        <option value="oldest">Oldest First</option>
-                        <option value="name">Name A-Z</option>
-                        <option value="quantity">Quantity</option>
-                    </select>
-                </div>
-            </div>
-        </div>
 
-        <div class="main-content">
-            <div class="table-container">
-                <table id="items-table">
+            <div class="sidebar-section">
+                <div class="section-title">STATS</div>
+                <div class="stat">Items: <span id="item-count">0</span></div>
+                <div class="stat">Total Qty: <span id="total-qty">0</span></div>
+            </div>
+
+            <div class="sidebar-section actions">
+                <button class="secondary-btn" onclick="location.reload()">Quick Sync</button>
+            </div>
+        </aside>
+
+        <main class="market-main">
+            <div class="market-header">
+                <div class="market-title">Market Orders</div>
+                <div class="market-sub">Compact view — click an item to edit</div>
+            </div>
+
+            <div class="table-wrap">
+                <table id="items-table" class="market-table">
                     <thead>
                         <tr>
-                            <th>IMAGE</th>
-                            <th>NAME</th>
-                            <th>QTY</th>
-                            <th>NOTE 1</th>
-                            <th>NOTE 2</th>
-                            <th>NOTE 3</th>
-                            <th>TIMESTAMP</th>
-                            <th>ACTIONS</th>
+                            <th class="col-img"> </th>
+                            <th class="col-name">Name</th>
+                            <th class="col-qty">Qty</th>
+                            <th class="col-note">Note 1</th>
+                            <th class="col-note">Note 2</th>
+                            <th class="col-note">Note 3</th>
+                            <th class="col-time">Time</th>
+                            <th class="col-actions"> </th>
                         </tr>
                     </thead>
                     <tbody id="items-tbody">
                     </tbody>
                 </table>
+
                 <div id="empty-state" class="empty-state" style="display:none;">
                     <div class="empty-icon">■</div>
                     <p>NO ITEMS IN DATABASE</p>
-                    <p class="empty-sub">Click NEW ENTRY to add items</p>
+                    <p class="empty-sub">Click NEW to add items</p>
                 </div>
             </div>
+        </main>
+    </div>
+
+    <!-- Image preview modal (enlarged icon) -->
+    <div id="image-modal" class="image-modal" style="display:none;">
+        <div class="image-modal-content">
+            <button class="image-close" id="image-close">✕</button>
+            <img id="image-modal-img" src="" alt="Preview">
+            <div id="image-modal-caption" class="image-caption"></div>
         </div>
     </div>
 
-    <!-- Modal -->
+    <!-- Modal (kept the same structure) -->
     <div id="modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="modal-title">Add New Item</h2>
                 <button class="close-btn" onclick="closeModal()">&times;</button>
             </div>
-            
+
             <form id="item-form" enctype="multipart/form-data">
                 <input type="hidden" id="item-id">
-                
+
                 <div class="form-group">
                     <label for="image">Image:</label>
                     <input type="file" id="image" accept="image/*">
@@ -88,10 +111,15 @@
                     <input type="text" id="name" required>
                 </div>
 
-                <div class="form-group">
-                    <label for="quantity">Quantity: *</label>
-                    <input type="number" id="quantity" min="0" required>
-                </div>
+                    <div class="form-group">
+                        <label for="quantity">Quantity: *</label>
+                        <input type="number" id="quantity" min="0" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="category-select">Category:</label>
+                        <select id="category-select"></select>
+                    </div>
 
                 <div class="form-group">
                     <label for="note1">Note 1:</label>
@@ -117,16 +145,115 @@
     </div>
 
     <script>
+        // --- extended script: categories + image preview + preserved behavior ---
         let items = [];
         let editingId = null;
+        let categories = [];
+        let selectedCategory = 'All';
 
-        // Load items on page load
+        // Initialize categories and load items
+        loadCategories();
         loadItems();
+
+        function loadCategories() {
+            const raw = localStorage.getItem('market_categories');
+            if (raw) {
+                try { categories = JSON.parse(raw); } catch(e){ categories = null; }
+            }
+            if (!categories || !Array.isArray(categories) || categories.length === 0) {
+                categories = ['All','Ships','Modules','Ammo','Minerals','Blueprints'];
+                saveCategories();
+            }
+            renderCategories();
+            populateCategorySelect();
+        }
+
+        function saveCategories(){
+            localStorage.setItem('market_categories', JSON.stringify(categories));
+        }
+
+        function renderCategories(){
+            const list = document.getElementById('category-list');
+            if(!list) return;
+            list.innerHTML = categories.map(cat => {
+                const safe = escapeHtml(cat);
+                const active = cat === selectedCategory ? 'active' : '';
+                const removable = (cat !== 'All') ? `<button data-rem="${safe}" class="cat-remove" title="Remove">✕</button>` : '';
+                return `<li class="category category-item ${active}" data-name="${safe}"><span class="cat-name">${safe}</span>${removable}</li>`;
+            }).join('');
+
+            // bind events
+            document.querySelectorAll('#category-list .category-item').forEach(el => {
+                el.addEventListener('click', (e) => {
+                    // prevent click when remove pressed
+                    if (e.target && e.target.classList.contains('cat-remove')) return;
+                    selectedCategory = el.getAttribute('data-name');
+                    renderCategories();
+                    displayItems();
+                    populateCategorySelect();
+                });
+            });
+
+            document.querySelectorAll('#category-list .cat-remove').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const name = btn.getAttribute('data-rem');
+                    removeCategory(name);
+                });
+            });
+        }
+
+        function addCategory(name){
+            name = (name||'').trim();
+            if(!name) return;
+            if(categories.includes(name)) return;
+            categories.push(name);
+            saveCategories();
+            renderCategories();
+            populateCategorySelect();
+            document.getElementById('new-category').value = '';
+        }
+
+        function removeCategory(name){
+            if(!name || name === 'All') return;
+            const idx = categories.indexOf(name);
+            if(idx === -1) return;
+            if(!confirm(`Remove category '${name}'? This won't delete items.`)) return;
+            categories.splice(idx,1);
+            if(selectedCategory === name) selectedCategory = 'All';
+            saveCategories();
+            renderCategories();
+            populateCategorySelect();
+            displayItems();
+        }
+
+        function populateCategorySelect(){
+            const sel = document.getElementById('category-select');
+            if(!sel) return;
+            sel.innerHTML = categories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+        }
+
+        document.getElementById('add-category-btn').addEventListener('click', () => {
+            const v = document.getElementById('new-category').value;
+            addCategory(v);
+        });
+
+        document.getElementById('new-category').addEventListener('keypress', (e)=>{
+            if(e.key === 'Enter'){
+                e.preventDefault();
+                addCategory(e.target.value);
+            }
+        });
 
         async function loadItems() {
             try {
                 const response = await fetch('/api/items');
                 items = await response.json();
+                // ensure category exists on items
+                items = items.map(i => ({...i, category: i.category || 'Uncategorized'}));
+                if (!categories.includes('Uncategorized')){
+                    categories.push('Uncategorized'); saveCategories(); renderCategories(); populateCategorySelect();
+                }
                 displayItems();
             } catch (error) {
                 console.error('Error loading items:', error);
@@ -145,10 +272,16 @@
             
             // Apply filters
             let filteredItems = filterAndSortItems();
-            
+
+            // Category filter
+            if (selectedCategory && selectedCategory !== 'All'){
+                filteredItems = filteredItems.filter(it => (it.category || 'Uncategorized') === selectedCategory);
+            }
+
             if (filteredItems.length === 0) {
                 table.style.display = 'none';
                 emptyState.style.display = 'flex';
+                tbody.innerHTML = '';
                 return;
             }
             
@@ -157,57 +290,49 @@
 
             tbody.innerHTML = filteredItems.map(item => {
                 const date = new Date(item.timestamp).toLocaleString();
+                const imgCell = item.image ? `<img src="${item.image}" alt="${escapeHtml(item.name)}" class="table-image" data-src="${item.image}" data-name="${escapeHtml(item.name)}">` : '<div class="no-img">-</div>';
                 return `
-                    <tr>
-                        <td class="img-cell">
-                            ${item.image ? `<img src="${item.image}" alt="${item.name}" class="table-image">` : '<div class="no-img">-</div>'}
-                        </td>
-                        <td class="name-cell">${escapeHtml(item.name)}</td>
+                    <tr class="market-row">
+                        <td class="img-cell">${imgCell}</td>
+                        <td class="name-cell">${escapeHtml(item.name)}<div class="cat-tag">${escapeHtml(item.category||'Uncategorized')}</div></td>
                         <td class="qty-cell">${item.quantity}</td>
                         <td class="note-cell">${escapeHtml(item.note1) || '-'}</td>
                         <td class="note-cell">${escapeHtml(item.note2) || '-'}</td>
                         <td class="note-cell">${escapeHtml(item.note3) || '-'}</td>
                         <td class="time-cell">${date}</td>
                         <td class="action-cell">
-                            <button onclick="editItem('${item.id}')" class="table-btn edit">EDIT</button>
-                            <button onclick="deleteItem('${item.id}')" class="table-btn delete">DELETE</button>
+                            <button onclick="editItem('${item.id}')" class="table-btn edit">✎</button>
+                            <button onclick="deleteItem('${item.id}')" class="table-btn delete">✕</button>
                         </td>
                     </tr>
                 `;
             }).join('');
+
+            // attach image preview handlers
+            document.querySelectorAll('#items-tbody .table-image').forEach(img => {
+                img.addEventListener('click', () => {
+                    openImagePreview(img.getAttribute('data-src'), img.getAttribute('data-name'));
+                });
+            });
         }
         
         function filterAndSortItems() {
             let filtered = [...items];
             
             // Search filter
-            const searchTerm = document.getElementById('search').value.toLowerCase();
+            const searchEl = document.getElementById('search');
+            const searchTerm = searchEl ? searchEl.value.toLowerCase() : '';
             if (searchTerm) {
                 filtered = filtered.filter(item => 
                     item.name.toLowerCase().includes(searchTerm) ||
-                    item.note1.toLowerCase().includes(searchTerm) ||
-                    item.note2.toLowerCase().includes(searchTerm) ||
-                    item.note3.toLowerCase().includes(searchTerm)
+                    (item.note1||'').toLowerCase().includes(searchTerm) ||
+                    (item.note2||'').toLowerCase().includes(searchTerm) ||
+                    (item.note3||'').toLowerCase().includes(searchTerm)
                 );
             }
             
-            // Sort
-            const sortBy = document.getElementById('sort').value;
-            switch(sortBy) {
-                case 'newest':
-                    filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                    break;
-                case 'oldest':
-                    filtered.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-                    break;
-                case 'name':
-                    filtered.sort((a, b) => a.name.localeCompare(b.name));
-                    break;
-                case 'quantity':
-                    filtered.sort((a, b) => b.quantity - a.quantity);
-                    break;
-            }
-            
+            // Sort fallback to timestamp desc
+            filtered.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
             return filtered;
         }
 
@@ -217,6 +342,7 @@
             document.getElementById('item-form').reset();
             document.getElementById('item-id').value = '';
             document.getElementById('image-preview').innerHTML = '';
+            populateCategorySelect();
             document.getElementById('modal').style.display = 'flex';
         });
 
@@ -237,6 +363,9 @@
             document.getElementById('note2').value = item.note2;
             document.getElementById('note3').value = item.note3;
             
+            populateCategorySelect();
+            try { document.getElementById('category-select').value = item.category || 'Uncategorized'; } catch(e){}
+
             if (item.image) {
                 document.getElementById('image-preview').innerHTML = `<img src="${item.image}" alt="Preview">`;
             }
@@ -281,6 +410,7 @@
             formData.append('note1', document.getElementById('note1').value);
             formData.append('note2', document.getElementById('note2').value);
             formData.append('note3', document.getElementById('note3').value);
+            formData.append('category', document.getElementById('category-select').value || 'Uncategorized');
             
             const imageFile = document.getElementById('image').files[0];
             if (imageFile) {
@@ -308,6 +438,29 @@
             }
         });
 
+        function openImagePreview(url, name){
+            const modal = document.getElementById('image-modal');
+            const img = document.getElementById('image-modal-img');
+            const cap = document.getElementById('image-modal-caption');
+            if(!url) return;
+            img.src = url;
+            cap.textContent = name || '';
+            modal.style.display = 'flex';
+        }
+
+        document.getElementById('image-close').addEventListener('click', ()=>{
+            document.getElementById('image-modal').style.display = 'none';
+            document.getElementById('image-modal-img').src = '';
+        });
+
+        // Close image modal when clicking outside content
+        document.getElementById('image-modal').addEventListener('click', (e)=>{
+            if(e.target === e.currentTarget){
+                e.currentTarget.style.display = 'none';
+                document.getElementById('image-modal-img').src = '';
+            }
+        });
+
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
@@ -315,9 +468,10 @@
         }
 
         // Filter event listeners
-        document.getElementById('search').addEventListener('input', displayItems);
-        document.getElementById('sort').addEventListener('change', displayItems);
-        document.getElementById('refresh-btn').addEventListener('click', loadItems);
+        const searchInput = document.getElementById('search');
+        if (searchInput) searchInput.addEventListener('input', displayItems);
+        const refreshBtn = document.getElementById('refresh-btn');
+        if (refreshBtn) refreshBtn.addEventListener('click', loadItems);
         
         // Close modal when clicking outside
         window.onclick = (event) => {

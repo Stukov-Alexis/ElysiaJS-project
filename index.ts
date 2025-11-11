@@ -12,6 +12,7 @@ interface Item {
   note2: string
   note3: string
   image: string
+  category?: string
   timestamp: string
 }
 
@@ -62,6 +63,7 @@ const app = new Elysia()
       note1: formData.note1 || '',
       note2: formData.note2 || '',
       note3: formData.note3 || '',
+      category: formData.category || 'Uncategorized',
       image: imagePath,
       timestamp: new Date().toISOString()
     }
@@ -80,7 +82,7 @@ const app = new Elysia()
       return { success: false, error: 'Item not found' }
     }
     
-    const item = items[itemIndex]
+  const item = items[itemIndex]!
     
     // Delete image file if exists
     if (item.image) {
@@ -105,7 +107,7 @@ const app = new Elysia()
       return { success: false, error: 'Item not found' }
     }
     
-    const item = items[itemIndex]
+  const item = items[itemIndex]!
     
     // Handle new image upload
     let imagePath = item.image
@@ -134,6 +136,7 @@ const app = new Elysia()
       note1: formData.note1 || item.note1,
       note2: formData.note2 || item.note2,
       note3: formData.note3 || item.note3,
+      category: formData.category || item.category,
       image: imagePath
     }
     
