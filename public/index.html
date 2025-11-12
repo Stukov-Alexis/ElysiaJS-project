@@ -7,6 +7,53 @@
     <link rel="stylesheet" href="/styles.css">
     <meta name="color-scheme" content="dark light">
     <meta name="theme-color" content="#0b1220">
+    <style>
+        /* Info overlay + card (centered animated pop-up) */
+        .info-overlay {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(2,6,11,0.6);
+            z-index: 1250;
+            opacity: 0;
+            transition: opacity 180ms ease;
+            pointer-events: none;
+        }
+
+        .info-overlay.show {
+            display: flex;
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .info-card {
+            width: 820px;
+            max-width: 92%;
+            background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 30px 80px rgba(2,6,23,0.85);
+            transform: translateY(6px) scale(.98);
+            opacity: 0;
+            transition: transform .18s ease, opacity .18s ease;
+            color: #e6eef8;
+        }
+
+        .info-card.enter {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+
+        .info-card .info-header { display:flex; align-items:center; gap:12px }
+        .info-card .info-image { width:120px; height:120px; border-radius:10px; object-fit:cover; background:#091018 }
+        .info-card .info-title { font-weight:800; font-size:18px }
+        .info-card .info-meta { font-size:13px; color:#9fb3d3 }
+        .info-card .info-notes { margin-top:12px; color:#d6e6fb; max-height:260px; overflow:auto }
+
+        .name-link { background: transparent; border: none; color: inherit; font-weight: 600; cursor: pointer; padding: 0; text-align: left; }
+    </style>
 </head>
 <body>
     <div class="market-top">
@@ -86,6 +133,25 @@
             <button class="image-close" id="image-close">✕</button>
             <img id="image-modal-img" src="" alt="Preview">
             <div id="image-modal-caption" class="image-caption"></div>
+        </div>
+    </div>
+
+    <!-- Animated info card (centered overlay) -->
+    <div id="info-overlay" class="info-overlay" aria-hidden="true">
+        <div id="info-card" class="info-card" role="dialog" aria-modal="true" aria-labelledby="info-title">
+            <button id="info-close" class="detail-close" title="Close">✕</button>
+            <div class="info-header">
+                <img id="info-image" class="info-image" src="" alt="">
+                <div style="min-width:0">
+                    <div id="info-title" class="info-title">Item name</div>
+                    <div id="info-meta" class="info-meta">Category • Qty • time</div>
+                </div>
+            </div>
+            <div id="info-notes" class="info-notes">Notes will appear here.</div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">
+                <button id="info-edit" class="primary-btn">Edit</button>
+                <button id="info-delete" class="secondary-btn">Delete</button>
+            </div>
         </div>
     </div>
 
@@ -453,6 +519,99 @@
             document.getElementById('image-modal-img').src = '';
         });
 
+        // --- Info card popup: show when clicking item name ---
+        function showInfoCard(item) {
+            const overlay = document.getElementById('info-overlay');
+            const card = document.getElementById('info-card');
+            if(!card || !overlay) return;
+            const img = document.getElementById('info-image');
+            const title = document.getElementById('info-title');
+            const meta = document.getElementById('info-meta');
+            const notes = document.getElementById('info-notes');
+            const editBtn = document.getElementById('info-edit');
+            const delBtn = document.getElementById('info-delete');
+
+            img.src = item.image || '';
+            img.alt = item.name || '';
+            title.textContent = item.name || 'Untitled';
+            const time = new Date(item.timestamp).toLocaleString();
+            meta.textContent = `${item.category || 'Uncategorized'} • ${item.quantity} • ${time}`;
+            notes.innerHTML = `
+                <div><strong>Note 1:</strong> ${escapeHtml(item.note1 || '-')}</div>
+                <div><strong>Note 2:</strong> ${escapeHtml(item.note2 || '-')}</div>
+                <div><strong>Note 3:</strong> ${escapeHtml(item.note3 || '-')}</div>
+            `;
+
+            // wire actions
+            editBtn.onclick = () => { closeInfoCard(); editItem(item.id); };
+            delBtn.onclick = async () => {
+                if (!confirm('Delete this item?')) return;
+                try {
+                    const res = await fetch(`/api/items/${item.id}`, { method: 'DELETE' });
+                    if (res.ok) { closeInfoCard(); await loadItems(); }
+                    else alert('Failed to delete');
+                } catch (e) { console.error(e); alert('Failed to delete'); }
+            };
+
+            overlay.classList.add('show');
+            card.classList.add('enter');
+            overlay.setAttribute('aria-hidden','false');
+
+            // focus management
+            editBtn.focus();
+        }
+
+        function closeInfoCard(){
+            const overlay = document.getElementById('info-overlay');
+            const card = document.getElementById('info-card');
+            if(!card || !overlay) return;
+            card.classList.remove('enter');
+            overlay.classList.remove('show');
+            overlay.setAttribute('aria-hidden','true');
+        }
+
+        document.getElementById('info-close').addEventListener('click', closeInfoCard);
+        document.getElementById('info-overlay').addEventListener('click', (e)=>{
+            if(e.target === e.currentTarget) closeInfoCard();
+        });
+
+        // enhance name cells to be clickable during render
+        const originalDisplayItems = displayItems;
+        async function displayItemsWithNames() {
+            originalDisplayItems();
+            // attach handlers for name buttons
+            document.querySelectorAll('#items-tbody .name-cell').forEach(td => {
+                const btn = td.querySelector('.name-link');
+                if(btn) return; // already enhanced
+                const text = td.innerHTML;
+                // replace leading text with button that opens info card
+                const match = td.querySelector('.cat-tag');
+                const catHtml = match ? match.outerHTML : '';
+                const nameText = td.childNodes[0] ? td.childNodes[0].textContent.trim() : '';
+                td.innerHTML = `<button class="name-link">${escapeHtml(nameText)}</button>${catHtml}`;
+                const nameBtn = td.querySelector('.name-link');
+                nameBtn.addEventListener('click', async (e)=>{
+                    // find the row's item id via action button onclick or row contents
+                    const row = td.closest('tr');
+                    if(!row) return;
+                    const editBtn = row.querySelector('.table-btn.edit');
+                    // get id from edit button's onclick attribute (editItem('id'))
+                    if(editBtn && editBtn.getAttribute('onclick')){
+                        const s = editBtn.getAttribute('onclick');
+                        const m = s.match(/editItem\('([0-9\-]+)'\)/);
+                        if(m){
+                            const id = m[1];
+                            const item = items.find(i=>i.id===id);
+                            if(item) showInfoCard(item);
+                        }
+                    }
+                });
+            });
+        }
+
+        // override the displayItems reference used earlier
+        displayItems = displayItemsWithNames;
+
         // Close image modal when clicking outside content
         document.getElementById('image-modal').addEventListener('click', (e)=>{
             if(e.target === e.currentTarget){
@@ -483,4 +642,3 @@
     </script>
 </body>
 </html>
-

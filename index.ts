@@ -35,6 +35,10 @@ const app = new Elysia()
     assets: 'uploads',
     prefix: '/uploads'
   }))
+  .use(staticPlugin({
+    assets: 'backgrounds',
+    prefix: '/backgrounds'
+  }))
   .get('/styles.css', () => Bun.file('public/styles.css'))
   .get('/', () => Bun.file('public/index.html'))
   
