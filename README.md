@@ -22,14 +22,14 @@ bun install
 
 ### Run the server
 ```bash
-bun run index.ts
+bun run start
 ```
 
 The database server will start at `http://localhost:3000`
 
 ### Development mode
 ```bash
-bun --watch index.ts
+bun run dev
 ```
 
 This will start the server in watch mode and automatically restart on file changes.
@@ -92,7 +92,7 @@ The `api/index.ts` function serves the Elysia API, while `vercel.json` routes th
 
 ### Vercel error: "WebStandard does not support listen"
 
-If Vercel shows this error, redeploy the latest version of the repository. Vercel imports `api/index.ts`, which exports `app.fetch`; it must not start a local server with `app.listen()`. The project now skips `app.listen()` whenever Vercel sets `VERCEL=1`, while `bun run index.ts` continues to start the local server on port `3000`.
+If Vercel shows this error, redeploy the latest version of the repository. Vercel imports `api/index.ts`, which exports `app.fetch`; it must not start a local server with `app.listen()`. The project keeps local startup in `server.ts`, which is never imported by Vercel. Use `bun run start` locally to start port `3000`.
 
 ## API Endpoints
 
