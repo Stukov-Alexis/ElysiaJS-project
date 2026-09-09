@@ -46,17 +46,49 @@ This will start the server in watch mode and automatically restart on file chang
 4. Click "Save" to add the item
 5. Use "Edit" or "Delete" buttons on item cards to manage items
 
-## Supabase and Vercel deployment
+## Connect Supabase and Vercel
 
-The app uses Supabase Postgres for item records and the `item-images` Storage bucket for uploaded images. Without Supabase environment variables, local development falls back to `database.json` and `uploads/`.
+The deployed app stores item records in Supabase Postgres and uploaded images in Supabase Storage. Local development uses the same Supabase project when the variables below are present; otherwise it falls back to `database.json` and `uploads/`.
 
-1. Create a Supabase project.
-2. Run `supabase/schema.sql` in the Supabase SQL Editor.
-3. Copy `.env.example` to `.env` and set `SUPABASE_URL` and the server-only `SUPABASE_SERVICE_ROLE_KEY`.
-4. Run locally with `bun run index.ts`.
-5. Import the repository into Vercel and add the same environment variables for the Production environment.
+### 1. Prepare the existing Supabase project
 
-Never expose `SUPABASE_SERVICE_ROLE_KEY` in browser code. The Vercel function uses it only on the server.
+1. Open the Supabase dashboard and select your existing project.
+2. Open **SQL Editor**, create a query, paste the contents of `supabase/schema.sql`, and click **Run**.
+3. Open **Project Settings > API**.
+4. Copy **Project URL** into `SUPABASE_URL`. It must look like `https://your-project-ref.supabase.co`, not a dashboard URL.
+5. Copy the server-only `service_role` key into `SUPABASE_SERVICE_ROLE_KEY`.
+
+The SQL creates the `items` table and the public `item-images` Storage bucket. The service-role key is required because the server uploads and deletes files. Never put it in frontend code or commit it to Git.
+
+### 2. Connect local development
+
+Copy `.env.example` to `.env` and replace the placeholder values:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Then edit `.env` and run:
+
+```powershell
+bun install
+bun run index.ts
+```
+
+Open `http://localhost:3000`. Confirm that `GET http://localhost:3000/api/items` returns the rows from Supabase. Stop the server before changing environment variables, then start it again.
+
+### 3. Deploy the existing project to Vercel
+
+1. Push this repository to GitHub, GitLab, or Bitbucket.
+2. In Vercel, select **Add New > Project**, import the repository, and choose the repository root as the project root.
+3. In **Settings > Environment Variables**, add these variables for **Production**, **Preview**, and **Development**:
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `SUPABASE_STORAGE_BUCKET` with value `item-images`
+4. Deploy or redeploy the project.
+5. Test `https://your-vercel-domain.vercel.app/` and `https://your-vercel-domain.vercel.app/api/items`.
+
+The `api/index.ts` function serves the Elysia API, while `vercel.json` routes the existing HTML, CSS, and background assets. Do not add `SUPABASE_SERVICE_ROLE_KEY` to Vercel client-side code or `public/` files.
 
 ## API Endpoints
 
