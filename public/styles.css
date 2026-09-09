@@ -48,13 +48,13 @@ body {
 
 /* Detail card modal styles */
 .detail-modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(2,6,11,0.6);z-index:1250}
-.detail-card{width:820px;max-width:92%;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));border-radius:12px;padding:18px;box-shadow:0 30px 80px rgba(2,6,23,0.85);transform:translateY(6px) scale(.98);opacity:0;transition:transform .18s ease,opacity .18s ease}
+.detail-card{width:820px;max-width:92%;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));border-radius:12px;padding:18px;box-shadow:0 30px 80px rgba(2,6,23,0.85);transform:translateY(6px) scale(.98);opacity:0;transition:transform 5s ease,opacity 5s ease}
 .detail-card.enter{transform:translateY(0) scale(1);opacity:1}
 .detail-close{position:absolute;right:14px;top:12px;background:transparent;border:1px solid rgba(255,255,255,0.03);color:var(--muted);padding:6px 8px;border-radius:6px;cursor:pointer}
 .detail-grid{display:grid;grid-template-columns:260px 1fr;gap:18px;align-items:start}
 .detail-image{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);padding:12px;border-radius:8px;display:flex;align-items:center;justify-content:center}
 .detail-image img{max-width:220px;max-height:220px;border-radius:6px;object-fit:contain}
-.detail-image img{transition:transform 0.6s cubic-bezier(.2,.8,.2,1), box-shadow 0.4s ease;cursor:zoom-in}
+.detail-image img{transition:transform 5s cubic-bezier(.2,.8,.2,1), box-shadow 5s ease;cursor:zoom-in}
 .detail-image img.zoomed{transform:scale(2.2);cursor:zoom-out;box-shadow:0 40px 120px rgba(2,6,23,0.9);z-index:1300}
 .detail-modal.zoomed{background:rgba(2,6,11,0.88)}
 .detail-info{min-width:0;display:flex;flex-direction:column}
@@ -117,7 +117,7 @@ body {
     pointer-events: none;
     border: 1px solid rgba(138,99,255,0.16);
     box-shadow: 0 20px 60px rgba(78,192,255,0.10), 0 0 80px rgba(138,99,255,0.06);
-    transition: box-shadow 220ms ease, opacity 220ms ease;
+    transition: box-shadow 2s ease, opacity 2s ease;
     z-index: -1;
 }
 
@@ -137,9 +137,8 @@ body {
     border-radius:12px;
     padding:18px;
     box-shadow:0 30px 80px rgba(2,6,23,0.85);
-    transform:translateY(6px) scale(.98);
-    opacity:1;
-    transition:transform .18s ease,opacity .18s ease;
+    transform: scale(0.3);
+    opacity: 0;
     background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
     background-color: rgba(8,14,22,0.5);
     backdrop-filter: blur(10px);
@@ -147,6 +146,10 @@ body {
     border: 1px solid rgba(255,255,255,0.03);
     position: relative;
     z-index: 1300;
+}
+
+.info-card.enter {
+    animation: zoomIn 2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 .info-card::before{
@@ -164,7 +167,7 @@ body {
     filter: blur(36px) saturate(1.05);
     opacity: 0.85;
     mix-blend-mode: screen;
-    transition: filter 220ms ease, opacity 220ms ease, transform 220ms ease;
+    transition: filter 2s ease, opacity 2s ease, transform 2s ease;
     animation: neonPulse 2.8s infinite ease-in-out;;
     z-index: -1;
 }
@@ -180,7 +183,7 @@ body {
     pointer-events: none;
     border: 1px solid rgba(138,99,255,0.16);
     box-shadow: 0 20px 60px rgba(78,192,255,0.10), 0 0 80px rgba(138,99,255,0.06);
-    transition: box-shadow 220ms ease, opacity 220ms ease;
+    transition: box-shadow 2s ease, opacity 2s ease;
     z-index: -1;
 }
 
@@ -329,6 +332,16 @@ body {
 .no-img{width:40px;height:40px;background:rgba(255,255,255,0.02);display:flex;align-items:center;justify-content:center;border-radius:6px;color:var(--muted)}
 
 .name-cell{padding:12px 8px;color:#e6f6ff}
+.name-cell .name-link {
+    color: #e6f6ff;
+    text-decoration: none;
+    transition: color 0.2s ease;
+    cursor: pointer;
+}
+.name-cell .name-link:hover {
+    color: var(--accent);
+    text-shadow: 0 0 8px rgba(78,192,255,0.4);
+}
 .qty-cell{padding:12px 8px;text-align:right;color:#9be3ff;font-weight:800}
 .note-cell{padding:12px 8px;color:var(--muted)}
 .time-cell{padding:12px 8px;color:var(--muted);font-size:12px}
@@ -366,3 +379,42 @@ body {
 
 /* small polish: subtle grid background in main table area */
 .market-main{background-image:radial-gradient(rgba(78,192,255,0.002) 0.8px, transparent 0.8px), radial-gradient(rgba(123,224,200,0.002) 0.8px, transparent 0.8px);background-position:0 0, 10px 10px;background-size:20px 20px,20px 20px}
+
+/* Animation keyframes for neon effects */
+@keyframes neonPulse {
+    0%, 100% {
+        opacity: 0.85;
+        filter: blur(36px) saturate(1.05);
+    }
+    50% {
+        opacity: 1;
+        filter: blur(42px) saturate(1.12);
+    }
+}
+
+@keyframes neonShift {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+@keyframes zoomIn {
+    0% {
+        transform: scale(0.3);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}

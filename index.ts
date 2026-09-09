@@ -1,6 +1,8 @@
 import { Elysia } from 'elysia'
+import { node } from '@elysiajs/node'
 import { staticPlugin } from '@elysiajs/static'
-import { readdir, writeFile, unlink } from 'fs/promises'
+import { createClient } from '@supabase/supabase-js'
+import { readFile, unlink, writeFile } from 'fs/promises'
 import { existsSync } from 'fs'
 import path from 'path'
 
@@ -18,9 +20,15 @@ interface Item {
 
 let items: Item[] = []
 const DB_FILE = 'database.json'
+const storageBucket = process.env.SUPABASE_STORAGE_BUCKET || 'item-images'
+const supabaseUrl = process.env.SUPABASE_URL
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const supabase = supabaseUrl && supabaseKey
+  ? createClient(supabaseUrl, supabaseKey)
+  : null
 
 // Load database
-if (existsSync(DB_FILE)) {
+if (!supabase && existsSync(DB_FILE)) {
   const data = await Bun.file(DB_FILE).text()
   items = JSON.parse(data)
 }
@@ -30,7 +38,53 @@ async function saveDatabase() {
   await writeFile(DB_FILE, JSON.stringify(items, null, 2))
 }
 
-const app = new Elysia()
+async function getItems() {
+  if (!supabase) return items
+
+  const { data, error } = await supabase.from('items').select('*').order('timestamp', { ascending: false })
+  if (error) throw error
+  return data as Item[]
+}
+
+function fileName(file: File) {
+  const extension = path.extname(file.name).toLowerCase().replace(/[^a-z0-9.]/g, '')
+  return `${crypto.randomUUID()}${extension}`
+}
+
+async function uploadImage(file: File) {
+  if (!supabase) {
+    const name = `${Date.now()}-${file.name}`
+    await writeFile(path.join('uploads', name), Buffer.from(await file.arrayBuffer()))
+    return `/uploads/${name}`
+  }
+
+  const objectName = fileName(file)
+  const { error } = await supabase.storage.from(storageBucket).upload(objectName, await file.arrayBuffer(), {
+    contentType: file.type || 'application/octet-stream',
+    upsert: false
+  })
+  if (error) throw error
+  return supabase.storage.from(storageBucket).getPublicUrl(objectName).data.publicUrl
+}
+
+async function removeImage(imageUrl: string) {
+  if (!imageUrl) return
+  if (!supabase) {
+    const imagePath = imageUrl.replace('/uploads/', 'uploads/')
+    if (existsSync(imagePath)) await unlink(imagePath)
+    return
+  }
+
+  const marker = `/storage/v1/object/public/${storageBucket}/`
+  const objectName = imageUrl.includes(marker) ? imageUrl.split(marker)[1] : ''
+  if (objectName) await supabase.storage.from(storageBucket).remove([objectName])
+}
+
+async function serveFile(filePath: string, contentType: string) {
+  return new Response(await readFile(filePath), { headers: { 'content-type': contentType } })
+}
+
+const app = new Elysia({ adapter: node() })
   .use(staticPlugin({
     assets: 'uploads',
     prefix: '/uploads'
@@ -39,11 +93,11 @@ const app = new Elysia()
     assets: 'backgrounds',
     prefix: '/backgrounds'
   }))
-  .get('/styles.css', () => Bun.file('public/styles.css'))
-  .get('/', () => Bun.file('public/index.html'))
+  .get('/styles.css', () => serveFile('public/styles.css', 'text/css'))
+  .get('/', () => serveFile('public/index.html', 'text/html'))
   
   // Get all items
-  .get('/api/items', () => items)
+  .get('/api/items', () => getItems())
   
   // Add new item
   .post('/api/items', async ({ body }) => {
@@ -52,12 +106,7 @@ const app = new Elysia()
     // Handle image upload
     let imagePath = ''
     if (formData.image && formData.image instanceof File) {
-      const image = formData.image as File
-      const imageId = Date.now() + '-' + image.name
-      const uploadPath = path.join('uploads', imageId)
-      
-      await writeFile(uploadPath, Buffer.from(await image.arrayBuffer()))
-      imagePath = '/uploads/' + imageId
+      imagePath = await uploadImage(formData.image as File)
     }
     
     const newItem: Item = {
@@ -72,32 +121,33 @@ const app = new Elysia()
       timestamp: new Date().toISOString()
     }
     
-    items.push(newItem)
-    await saveDatabase()
+    if (supabase) {
+      const { error } = await supabase.from('items').insert(newItem)
+      if (error) throw error
+    } else {
+      items.push(newItem)
+      await saveDatabase()
+    }
     
     return { success: true, item: newItem }
   })
   
   // Delete item
   .delete('/api/items/:id', async ({ params: { id } }) => {
-    const itemIndex = items.findIndex(item => item.id === id)
-    
-    if (itemIndex === -1) {
+    const currentItems = await getItems()
+    const item = currentItems.find(value => value.id === id)
+    if (!item) {
       return { success: false, error: 'Item not found' }
     }
-    
-  const item = items[itemIndex]!
-    
-    // Delete image file if exists
-    if (item.image) {
-      const imagePath = item.image.replace('/uploads/', 'uploads/')
-      if (existsSync(imagePath)) {
-        await unlink(imagePath)
-      }
+
+    await removeImage(item.image)
+    if (supabase) {
+      const { error } = await supabase.from('items').delete().eq('id', id)
+      if (error) throw error
+    } else {
+      items = currentItems.filter(value => value.id !== id)
+      await saveDatabase()
     }
-    
-    items.splice(itemIndex, 1)
-    await saveDatabase()
     
     return { success: true }
   })
@@ -105,35 +155,21 @@ const app = new Elysia()
   // Update item
   .put('/api/items/:id', async ({ params: { id }, body }) => {
     const formData = body as any
-    const itemIndex = items.findIndex(item => item.id === id)
-    
+    const currentItems = await getItems()
+    const itemIndex = currentItems.findIndex(item => item.id === id)
     if (itemIndex === -1) {
       return { success: false, error: 'Item not found' }
     }
-    
-  const item = items[itemIndex]!
+    const item = currentItems[itemIndex]!
     
     // Handle new image upload
     let imagePath = item.image
     if (formData.image && formData.image instanceof File) {
-      // Delete old image
-      if (item.image) {
-        const oldImagePath = item.image.replace('/uploads/', 'uploads/')
-        if (existsSync(oldImagePath)) {
-          await unlink(oldImagePath)
-        }
-      }
-      
-      // Save new image
-      const image = formData.image as File
-      const imageId = Date.now() + '-' + image.name
-      const uploadPath = path.join('uploads', imageId)
-      
-      await writeFile(uploadPath, Buffer.from(await image.arrayBuffer()))
-      imagePath = '/uploads/' + imageId
+      await removeImage(item.image)
+      imagePath = await uploadImage(formData.image as File)
     }
-    
-    items[itemIndex] = {
+
+    const updatedItem = {
       ...item,
       name: formData.name || item.name,
       quantity: parseInt(formData.quantity) || item.quantity,
@@ -143,12 +179,20 @@ const app = new Elysia()
       category: formData.category || item.category,
       image: imagePath
     }
-    
-    await saveDatabase()
-    
-    return { success: true, item: items[itemIndex] }
-  })
-  
-  .listen(3000)
+    if (supabase) {
+      const { error } = await supabase.from('items').update(updatedItem).eq('id', id)
+      if (error) throw error
+    } else {
+      items[itemIndex] = updatedItem
+      await saveDatabase()
+    }
 
-console.log(`📋 Database server is running at http://${app.server?.hostname}:${app.server?.port}`)
+    return { success: true, item: updatedItem }
+  })
+
+export default app.fetch
+
+if (import.meta.main) {
+  app.listen(3000)
+  console.log('Database server is running at http://localhost:3000')
+}

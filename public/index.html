@@ -15,16 +15,17 @@
             display: none;
             align-items: center;
             justify-content: center;
-            background: rgba(2,6,11,0.6);
+            background: rgba(2,6,11,0);
             z-index: 1250;
             opacity: 0;
-            transition: opacity 180ms ease;
+            transition: background 0.5s ease, opacity 0.5s ease;
             pointer-events: none;
         }
 
         .info-overlay.show {
             display: flex;
             opacity: 1;
+            background: rgba(2,6,11,0.8);
             pointer-events: auto;
         }
 
@@ -35,15 +36,28 @@
             border-radius: 12px;
             padding: 18px;
             box-shadow: 0 30px 80px rgba(2,6,23,0.85);
-            transform: translateY(6px) scale(.98);
+            transform: scale(0.3);
             opacity: 0;
-            transition: transform .18s ease, opacity .18s ease;
             color: #e6eef8;
         }
 
         .info-card.enter {
-            transform: translateY(0) scale(1);
-            opacity: 1;
+            animation: zoomIn 2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        
+        @keyframes zoomIn {
+            0% {
+                transform: scale(0.3);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.05);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
         }
 
         .info-card .info-header { display:flex; align-items:center; gap:12px }
@@ -374,10 +388,23 @@
                 `;
             }).join('');
 
-            // attach image preview handlers
+            // attach image click handlers to show info card
             document.querySelectorAll('#items-tbody .table-image').forEach(img => {
+                img.style.cursor = 'pointer';
                 img.addEventListener('click', () => {
-                    openImagePreview(img.getAttribute('data-src'), img.getAttribute('data-name'));
+                    // Find the item ID from the row
+                    const row = img.closest('tr');
+                    if (!row) return;
+                    const editBtn = row.querySelector('.table-btn.edit');
+                    if (editBtn && editBtn.getAttribute('onclick')) {
+                        const s = editBtn.getAttribute('onclick');
+                        const m = s.match(/editItem\('([0-9\-]+)'\)/);
+                        if (m) {
+                            const id = m[1];
+                            const item = items.find(i => i.id === id);
+                            if (item) showInfoCard(item);
+                        }
+                    }
                 });
             });
         }
@@ -553,12 +580,21 @@
                 } catch (e) { console.error(e); alert('Failed to delete'); }
             };
 
+            // Show overlay first
             overlay.classList.add('show');
-            card.classList.add('enter');
             overlay.setAttribute('aria-hidden','false');
+            
+            // Trigger animation on next frame
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    card.classList.add('enter');
+                });
+            });
 
-            // focus management
-            editBtn.focus();
+            // focus management after animation starts
+            setTimeout(() => {
+                editBtn.focus();
+            }, 100);
         }
 
         function closeInfoCard(){

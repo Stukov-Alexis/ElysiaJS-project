@@ -46,11 +46,17 @@ This will start the server in watch mode and automatically restart on file chang
 4. Click "Save" to add the item
 5. Use "Edit" or "Delete" buttons on item cards to manage items
 
-## Data Storage
+## Supabase and Vercel deployment
 
-- Items are saved in `database.json` file
-- Images are stored in the `uploads/` directory
-- All data persists across server restarts
+The app uses Supabase Postgres for item records and the `item-images` Storage bucket for uploaded images. Without Supabase environment variables, local development falls back to `database.json` and `uploads/`.
+
+1. Create a Supabase project.
+2. Run `supabase/schema.sql` in the Supabase SQL Editor.
+3. Copy `.env.example` to `.env` and set `SUPABASE_URL` and the server-only `SUPABASE_SERVICE_ROLE_KEY`.
+4. Run locally with `bun run index.ts`.
+5. Import the repository into Vercel and add the same environment variables for the Production environment.
+
+Never expose `SUPABASE_SERVICE_ROLE_KEY` in browser code. The Vercel function uses it only on the server.
 
 ## API Endpoints
 
@@ -64,6 +70,11 @@ This will start the server in watch mode and automatically restart on file chang
 - **Backend**: ElysiaJS with REST API
 - **Frontend**: Vanilla JavaScript
 - **Runtime**: Bun
-- **Database**: JSON file storage
-- **File Upload**: Multipart form data
+- **Database**: Supabase Postgres with local JSON fallback
+- **File Upload**: Supabase Storage with local filesystem fallback
+- **Deployment**: Vercel Node function
 - **Styling**: Modern CSS with gradients and animations
+
+
+## Current issue
+- Only display ".jpg" image
