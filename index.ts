@@ -192,7 +192,7 @@ const app = new Elysia({ adapter: node() })
 
 export default app.fetch
 
-if (import.meta.main) {
+if (import.meta.main && process.env.VERCEL !== '1') {
   app.listen(3000)
   console.log('Database server is running at http://localhost:3000')
 }
