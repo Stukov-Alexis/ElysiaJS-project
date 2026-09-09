@@ -30,7 +30,7 @@
   ],
   "functions": {
     "api/index.ts": {
-      "includeFiles": ["public/**", "backgrounds/**", "uploads/**"]
+      "includeFiles": "public/**"
     }
   }
 }
