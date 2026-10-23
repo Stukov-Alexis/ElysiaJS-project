@@ -1,17 +1,13 @@
 # funny-project
 
-An item database management system with image upload functionality built with ElysiaJS.
+An item database management system with image upload functionality built with ElysiaJS. Im just bored
 
 ## Features
 
-- 📦 Add, edit, and delete items
-- 🖼️ Image upload and storage
-- 📋 Multiple note fields per item
-- 🔢 Quantity tracking
-- 🗃️ Timestamp for each item
-- 💾 Data persistence with JSON database
-- 🎨 Modern, responsive card-based UI
-- ✨ Smooth animations and transitions
+- Add, edit, and delete items
+-  Image upload and storage
+-  Multiple note fields per item
+-  Quantity tracking
 
 ## Getting Started
 
@@ -77,7 +73,7 @@ bun run index.ts
 
 Open `http://localhost:3000`. Confirm that `GET http://localhost:3000/api/items` returns the rows from Supabase. Stop the server before changing environment variables, then start it again.
 
-### 3. Deploy the existing project to Vercel
+### 3. Deploy the existing project to Vercel (cause im using vercel and supabase duhhh)
 
 1. Push this repository to GitHub, GitLab, or Bitbucket.
 2. In Vercel, select **Add New > Project**, import the repository, and choose the repository root as the project root.
@@ -113,4 +109,4 @@ If Vercel shows this error, redeploy the latest version of the repository. Verce
 
 
 ## Current issue
-- Only display ".jpg" image
+- Only display ".jpg" image, prob wont fix it
